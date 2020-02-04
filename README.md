@@ -18,11 +18,17 @@ or
 To run the program with an options file--say, hw3_options/options_1.txt--just do
 
 ```
-./treeplot --file hw3_options.txt
+./treeplot --file hw3_options/options_1.txt
 ```
 
 or equivalently
 
 ```
-./treeplot -f hw3_options.txt
+./treeplot -f hw3_options/options_1.txt
+```
+
+An interesting feature that's available is estimation of the fractal (Hausdorff) dimension of the generated tree, which can be enabled with the option --hausdorff_dimension, for example like
+
+```
+./treeplot.py --hausdorff_dimension 1.0e-6 -f hw3_options/options_12.txt
 ```

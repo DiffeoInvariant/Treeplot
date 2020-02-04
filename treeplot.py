@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
 import matplotlib.pyplot as plt
-from math import radians, sin, cos
+from math import radians, sin, cos, ceil, log
 import argparse
-#from numba import njit
+from numba import jit
+from collections import Iterable
 
 class TreePlotter(object):
 
@@ -11,16 +12,18 @@ class TreePlotter(object):
     def __init__(self, **kwargs):
 
         self.lines = None
-        self.hausdorff_dimension = None
+        self.saved_hausdorff_dimension = None
         self.fig = plt.figure()
         self.ax = plt.subplot(111)
         self.title = None
         
         self.parser = None
         from_args = kwargs.get('from_args',False)
-
+        
         self.plot_in_ctor = False
         if from_args:
+            self.hdim_ctor_eps = None
+            self.hdim_ctor_single_eps = None
             self._build_arg_parser()
             self._extract_args()
         else:
@@ -34,6 +37,16 @@ class TreePlotter(object):
             self.right_angle = kwargs.get('right_angle', 90.0)
             self.tree_depth = kwargs.get('depth', 10)
             self.plot_in_ctor = kwargs.get('plot_from_options', False)
+            self.hdim_ctor_eps = kwargs.get('hausdorff_eps', None)
+            if self.hdim_ctor_eps is not None:
+                if isinstance(self.hdim_ctor_eps, Iterable):
+                    if len(self.hdim_ctor_eps) == 1:
+                        self.hdim_ctor_single_eps = True
+                        self.hdim_ctor_eps = float(self.hdim_ctor_eps[0])
+                    else:
+                        self.hdim_ctor_single_eps = False
+                else:
+                    self.hdim_ctor_single_eps = True
 
         self.ax.set_xlim([0,self.plot_width])
         self.ax.set_ylim([0,self.plot_height])
@@ -43,10 +56,21 @@ class TreePlotter(object):
         self.lines = {'root' : self.Line(self.root_coord[0], self.root_coord[1],
                                     self.root_len, self.right_angle, True, True, True)}
 
-        if self.plot_in_ctor:
+        if self.plot_in_ctor or self.hdim_ctor_eps is not None:
             self.add_lines_to_depth()
-            self.plot_all_lines()
-            self.show()
+
+            if self.hdim_ctor_eps is not None:
+                print_vals = not self.hdim_ctor_single_eps
+                hdim = self.hausdorff_dimension(self.hdim_ctor_eps, print_vals=print_vals)
+                if not self.hdim_ctor_single_eps:
+                    eps = min(self.hdim_ctor_eps)
+                else:
+                    eps = self.hdim_ctor_eps
+                print(f"Hausdorff dimension of this tree estimated with minimum epsilon={eps}: {hdim}\n")
+            
+            if self.plot_in_ctor:
+                self.plot_all_lines()
+                self.show()
         
 
 
@@ -62,6 +86,24 @@ class TreePlotter(object):
     def plot_line(self, line):
         xs, ys = line.plot_coords()
         self.ax.plot(xs, ys, linewidth=self.line_width, color='black')
+
+
+    def traverse_and_apply(self, func, parent_line='root'):
+        #apply func (any callable object) to every line.
+        #WARNING: if func changes the lines in any way, the results are
+        # "on you".
+        if parent_line == 'root':
+            ln = self.lines['root']
+        else:
+            ln = parent_line
+            
+        func(ln)
+
+        if not ln.is_leaf:
+            left, right = self.lines[ln]
+            self.traverse_and_apply(func, left)
+            self.traverse_and_apply(func, right)
+        
 
     def plot_lines_from(self, from_line):
         if from_line == 'root':
@@ -166,6 +208,9 @@ class TreePlotter(object):
         self.parser.add_argument('--line_width', '-lw',
                                  help='width of lines in plot',
                                  type=float)
+        self.parser.add_argument('--hausdorff_dimension', help='Estimate the Hausdorff dimension by covering with circles of (small) radius epsilon. Pass epsilon as either  a single float (e.g. --hausdorff_dimension 1.0e-6) or as a list of floats (e.g. --hausdorff_dimension 1.0e-6 1.0e-8 1.0e-9) to compute with either a single epsilon or as an average with a list of epsilons.',
+                                 type=float, nargs='+')
+        
 
     def _extract_args(self):
         args = self.parser.parse_args()
@@ -191,6 +236,14 @@ class TreePlotter(object):
             self.title = args.title
         if args.line_width:
             self.line_width = args.line_width
+        if args.hausdorff_dimension:
+            if len(args.hausdorff_dimension) == 1:
+                self.hdim_ctor_eps = float(args.hausdorff_dimension[0])
+                self.hdim_ctor_single_eps = True
+            else:
+                self.hdim_ctor_eps = args.hausdorff_dimension
+                self.hdim_ctor_single_eps = False
+            
 
     def to_options_file(self, filename):
         ops_string = f"--tree_depth {self.tree_depth} "\
@@ -208,9 +261,71 @@ class TreePlotter(object):
         
         with open(filename, 'w') as ops_file:
             ops_file.write(ops_string)
-            
 
-    
+
+    def _backend_compute_hausdorff_dimension(self, counter):
+        self.traverse_and_apply(counter)
+        counter.finalize()
+        numerator = log(float(counter.count))
+        denominator = log(1.0/float(counter.epsilon))
+        return numerator/denominator
+
+
+    def _recompute_hausdorff_dimension(self, epsilon, print_vals):
+        if isinstance(epsilon, float):
+            counter = self.CoveringCounter(epsilon)
+            self.saved_hausdorff_dimension = self._backend_compute_hausdorff_dimension(counter)
+        elif isinstance(epsilon, Iterable):
+            #if you provide multiple epsilon values, return the average
+            #of the computed Hausdorff dimensions.
+            # if you want to see all the values, pass print_vals=True.
+            hdims = []
+            for eps in epsilon:
+                counter = self.CoveringCounter(epsilon)
+                hdims.append(self._backend_compute_hausdorff_dimension(counter))
+            if print_vals:
+                print(f"List of (epsilon, estimated Hausdorff dimension):\n {[(eps, d) for eps, d in zip(epsilon, hdims)]}\n")
+            self.saved_hausdorff_dimension = sum(hdims)/float(len(hdims))
+
+    def hausdorff_dimension(self, epsilon, recompute=True, print_vals=False):
+        if recompute:
+            self._recompute_hausdorff_dimension(epsilon, print_vals)
+            
+        return self.saved_hausdorff_dimension
+                        
+                    
+
+    class CoveringCounter(object):
+        #counts number of circles of radius epsilon needed to cover this tree.
+        #valid only for very small epsilon.
+
+        def __init__(self, epsilon):
+            self.epsilon = epsilon
+            self.count = 0
+
+        def _count_of_line(self, ln):
+            #each end of the line is covered by half of a certain number of
+            #circles that are also covering another line, determined by its number
+            #of children. the discrepancy with the root (we overcount by one)
+            #is handled at the end of everything
+            if ln.is_leaf:
+                len_to_cover = ln.length - self.epsilon
+            else:
+                len_to_cover = ln.length - 2.0*self.epsilon
+
+            return ceil(len_to_cover / (2.0*self.epsilon))
+
+
+        def finalize(self):
+            #we overcounted by one at the root (see _count_of_line),
+            #so call this after traversing the whole tree
+            self.count -= 1
+
+        def __call__(self, ln):
+            self.count += self._count_of_line(ln)
+            
+            
+        
     class Line(object):
                  
 
@@ -271,10 +386,13 @@ class TreePlotter(object):
                 self.angle = float(new_angle)
 
             self.compute_endpoint(True, False)
-            
+
+
             
 
 
 
 if __name__ == '__main__':
     tree_plotter = TreePlotter(from_args=True)
+
+    
