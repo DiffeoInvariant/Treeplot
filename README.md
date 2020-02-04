@@ -5,10 +5,13 @@ For examples of how to write an options file for treeplot, see the hw3_options d
 
 To see all the options and explanations for their uses, use
 
+```
 ./treeplot --help
+```
 
 or
 
+```
 ./treeplot -h
-
+```
 
