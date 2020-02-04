@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 from math import radians, sin, cos, ceil, log
 import argparse
-from collections import Iterable
+from collections.abc import Iterable
 
 class TreePlotter(object):
 
