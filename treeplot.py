@@ -3,7 +3,6 @@
 import matplotlib.pyplot as plt
 from math import radians, sin, cos, ceil, log
 import argparse
-from numba import jit
 from collections import Iterable
 
 class TreePlotter(object):
@@ -27,11 +26,11 @@ class TreePlotter(object):
             self._build_arg_parser()
             self._extract_args()
         else:
-            self.line_width = kwargs.get('line_width',0.25)
-            self.plot_width = kwargs.get('plot_width',10)
-            self.plot_height = kwargs.get('plot_height',10)
+            self.line_width = kwargs.get('line_width',0.5)
+            self.plot_width = kwargs.get('plot_width',5)
+            self.plot_height = kwargs.get('plot_height',5)
             self.root_len = kwargs.get('root_len', 1.0)
-            self.scale_factor = kwargs.get('scale_by',0.6)
+            self.scale_factor = kwargs.get('scale_by',0.8)
             self.root_coord = kwargs.get('root', [0.5*self.plot_width, 0.0])
             self.left_angle = kwargs.get('left_angle', 90.0)
             self.right_angle = kwargs.get('right_angle', 90.0)
