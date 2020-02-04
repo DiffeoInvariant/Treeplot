@@ -264,7 +264,6 @@ class TreePlotter(object):
 
     def _backend_compute_hausdorff_dimension(self, counter):
         self.traverse_and_apply(counter)
-        counter.finalize()
         numerator = log(float(counter.count))
         denominator = log(1.0/float(counter.epsilon))
         return numerator/denominator
@@ -302,26 +301,9 @@ class TreePlotter(object):
             self.epsilon = epsilon
             self.count = 0
 
-        def _count_of_line(self, ln):
-            #each end of the line is covered by half of a certain number of
-            #circles that are also covering another line, determined by its number
-            #of children. the discrepancy with the root (we overcount by one)
-            #is handled at the end of everything
-            if ln.is_leaf:
-                len_to_cover = ln.length - self.epsilon
-            else:
-                len_to_cover = ln.length - 2.0*self.epsilon
-
-            return ceil(len_to_cover / (2.0*self.epsilon))
-
-
-        def finalize(self):
-            #we overcounted by one at the root (see _count_of_line),
-            #so call this after traversing the whole tree
-            self.count -= 1
-
         def __call__(self, ln):
-            self.count += self._count_of_line(ln)
+            if ln.is_leaf:
+                self.count += ceil(ln.length / (2.0*self.epsilon))
             
             
         
