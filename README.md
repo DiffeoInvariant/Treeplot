@@ -15,3 +15,14 @@ or
 ./treeplot -h
 ```
 
+To run the program with an options file--say, hw3_options/options_1.txt--just do
+
+```
+./treeplot --file hw3_options.txt
+```
+
+or equivalently
+
+```
+./treeplot -f hw3_options.txt
+```
