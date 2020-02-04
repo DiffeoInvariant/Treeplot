@@ -281,7 +281,7 @@ class TreePlotter(object):
             # if you want to see all the values, pass print_vals=True.
             hdims = []
             for eps in epsilon:
-                counter = self.CoveringCounter(epsilon)
+                counter = self.CoveringCounter(eps)
                 hdims.append(self._backend_compute_hausdorff_dimension(counter))
             if print_vals:
                 print(f"List of (epsilon, estimated Hausdorff dimension):\n {[(eps, d) for eps, d in zip(epsilon, hdims)]}\n")
