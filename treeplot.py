@@ -31,6 +31,8 @@ class TreePlotter(object):
             self.plot_height = kwargs.get('plot_height',5)
             self.root_len = kwargs.get('root_len', 1.0)
             self.scale_factor = kwargs.get('scale_by',0.8)
+            self.left_scale = kwargs.get('left_scale', self.scale_factor)
+            self.right_scale = kwargs.get('right_scale',self.scale_factor)
             self.root_coord = kwargs.get('root', [0.5*self.plot_width, 0.0])
             self.left_angle = kwargs.get('left_angle', 90.0)
             self.right_angle = kwargs.get('right_angle', 90.0)
@@ -139,11 +141,13 @@ class TreePlotter(object):
         if angle_degs_right is None:
             angle_degs_right = self.right_angle
 
-        
-        new_length = self.scale_factor * leaf_line.length
         new_startx, new_starty = leaf_line.midpoint()
-        left = self.Line(new_startx, new_starty, new_length, angle_degs_left, False, True, not leaf_line.vertical)
-        right = self.Line(new_startx, new_starty, new_length, angle_degs_right, True, True, not leaf_line.vertical)
+        left = self.Line(new_startx, new_starty, self.left_scale * leaf_line.length,
+                         angle_degs_left, False, True, not leaf_line.vertical)
+        
+        right = self.Line(new_startx, new_starty, self.right_scale * leaf_line.length,
+                          angle_degs_right, True, True, not leaf_line.vertical)
+        
         leaf_line.set_leaf(False)
         return left, right
 
@@ -193,6 +197,12 @@ class TreePlotter(object):
         self.parser.add_argument('--scale_factor','-s',
                                  help='scale new line lengths by this factor',
                                  type=float)
+        self.parser.add_argument('--left_scale', '-sl',
+                                 help='scale left/down lines by this factor',
+                                 type=float)
+        self.parser.add_argument('--right_scale', '-sr',
+                                 help='scale right/up lines by this factor',
+                                 type=float)
         self.parser.add_argument('--root', '-r',
                                  help='coordinates to use for the root line',
                                  type=float, nargs=2)
@@ -227,6 +237,15 @@ class TreePlotter(object):
             self.root_len = args.root_length
         if args.scale_factor:
             self.scale_factor = args.scale_factor
+        if args.left_scale:
+            self.left_scale = args.left_scale
+        else:
+            self.left_scale = self.scale_factor
+        if args.right_scale:
+            self.right_scale = args.right_scale
+        else:
+            self.right_scale = self.scale_factor
+            
         if args.root:
             self.root_coord = args.root
         if args.plot_from_options:
@@ -249,7 +268,8 @@ class TreePlotter(object):
                      f"--left_angle {self.left_angle} "\
                      f"--right_angle {self.right_angle} "\
                      f"--root_length {self.root_len} "\
-                     f"--scale_factor {self.scale_factor} "\
+                     f"--left_scale {self.left_scale} "\
+                     f"--right_scale {self.right_scale} "\
                      f"--root {self.root_coord} "\
                      f"--plot_width {self.plot_width} "\
                      f"--plot_height {self.plot_height} "
